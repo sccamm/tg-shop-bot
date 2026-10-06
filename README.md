@@ -216,11 +216,11 @@ if __name__ == "__main__":
 ## 📸 Скриншоты
 
 ### Главный экран
-![Главный экран](<img width="492" height="1024" alt="efc8fe1b-ffb5-41c6-9c9c-fde9f3afa9a0" src="https://github.com/user-attachments/assets/85aed70a-98d0-42dc-bc92-57cc2bdb90ea" />)
+<img width="492" height="1024" alt="efc8fe1b-ffb5-41c6-9c9c-fde9f3afa9a0" src="https://github.com/user-attachments/assets/85aed70a-98d0-42dc-bc92-57cc2bdb90ea" />
 
 ### Профиль
-![Профиль](<img width="483" height="1024" alt="58ad9db2-9e24-47b3-b725-d539e236a500" src="https://github.com/user-attachments/assets/4a298994-c558-4d79-b3ea-22864b526dbe" />)
+<img width="483" height="1024" alt="58ad9db2-9e24-47b3-b725-d539e236a500" src="https://github.com/user-attachments/assets/4a298994-c558-4d79-b3ea-22864b526dbe" />
 
 ### Пополнение баланса
-![Оформление](<img width="482" height="1024" alt="525b2b72-33c5-4e78-9b9f-19d4fee80752" src="https://github.com/user-attachments/assets/38b9e7ec-5a1f-419b-9a43-431d58487e1c" />
-)
+<img width="482" height="1024" alt="525b2b72-33c5-4e78-9b9f-19d4fee80752" src="https://github.com/user-attachments/assets/38b9e7ec-5a1f-419b-9a43-431d58487e1c" />
+
