@@ -1,12 +1,14 @@
 <div align="center">
 
-# 🤖 Telegram Shop Bot\Web3
+# ⭐ TGbuySelStars — Telegram Mini App
 
-**Бот-магазин Telegram Stars с каталогом, корзиной и админ-панелью**
+**Продажа Telegram Stars и Premium. Пополнение через ЮKassa и TON. Всё внутри Telegram.**
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![aiogram](https://img.shields.io/badge/aiogram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Telegram](https://img.shields.io/badge/Telegram%20WebApp-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
 </div>
 
@@ -14,202 +16,266 @@
 
 ## 📖 О проекте
 
-Web3 бот-магазин Telegram Stars с оплатой, каталогом товаров и админ-панелью прямо в Telegram.
+Полноценный **Telegram Mini App (Web App)** для покупки и продажи Telegram Stars, а также оформления подписки Telegram Premium. Работает прямо внутри Telegram — без установки, без переходов в браузер.
 
 ### Возможности
 
-- 🛍 **Каталог** с категориями и поиском
-- 🛒 **Корзина** и оформление заказа
-- 💳 **Оплата** через ЮKassa / CryptoBot
-- 📊 **Админ-панель** в Telegram: статистика, товары, рассылка
-- 🗄 **SQLite** с миграциями
+- ⭐ **Покупка Stars** — 4 готовых пакета (50 / 100 / 500 / 1000) + произвольное количество
+- 👑 **Telegram Premium** — подписки на 3 / 6 / 12 месяцев, отдельные цены для KYC / Non-KYC аккаунтов
+- 💰 **Продажа Stars** — обмен звёзд на рубли с моментальным пересчётом курса
+- 💳 **Пополнение баланса** — ЮKassa (карта) и TON (крипта с комментарием user_id)
+- 📊 **История операций** — список последних транзакций с цветовой кодировкой
+- 🔗 **Реферальная система** — ссылка с `?start=r{user_id}` для приглашения друзей
+- 🎨 **Современный UI** — glassmorphism, плавные анимации, ripple-эффект на кнопках
+- 📱 **Адаптивность** — mobile-first, оптимизировано под Telegram WebApp
+- 🌙 **Тёмная тема** — фиолетово-голубой градиент
 
 ---
-# ВСЕ НИЖЕ ПОКАЗАННО ДЛЯ ПРИМЕРА ТАК КАК ОНО ВЫПОЛНЕНО НА ЗАКАЗ И НА ДАННЫЙ МОМЕНТ АКТИВНО РАБОТАЕТ
 
-## 🚀 Установка
+## 🗂 Архитектура
+
+```
+tgbuy-stars-miniapp/
+├── index.html          — единый файл (SPA, весь UI + логика)
+├── (backend)           — API-сервер (не в этом репо)
+│   ├── /api/balance       — баланс пользователя
+│   ├── /api/transactions  — история
+│   ├── /api/buy/stars     — покупка звёзд
+│   ├── /api/buy/premium   — покупка Premium
+│   ├── /api/sell/stars    — продажа звёзд
+│   ├── /api/deposit       — создание платежа (ЮKassa / TON)
+│   └── /api/referral      — реферальная статистика
+└── README.md
+```
+
+Проект — **single-page application (SPA)** в одном HTML-файле. Все экраны (main, buy, premium, deposit, profile, sell) переключаются через JS без перезагрузки страницы.
+
+---
+
+## 💻 Ключевые куски кода
+
+### 1. Инициализация Telegram WebApp (`index.html`)
+
+При загрузке бот получает данные пользователя из `Telegram.WebApp.initDataUnsafe` — ID, username, имя.
+
+```javascript
+let tg = window.Telegram.WebApp;
+tg.expand();
+tg.enableClosingConfirmation();
+
+function initializeApp() {
+    const initData = tg.initDataUnsafe;
+    userData = {
+        id: initData.user?.id || '123456',
+        username: initData.user?.username || 'user',
+        firstName: initData.user?.first_name || 'User',
+        lastName: initData.user?.last_name || ''
+    };
+
+    document.getElementById('profileUserId').textContent = userData.id;
+    document.getElementById('profileUsername').textContent = '@' + userData.username;
+    document.getElementById('userId').textContent = userData.id;
+
+    const referralLink = `https://t.me/your_bot_username?start=r${userData.id}`;
+    document.getElementById('referralLink').textContent = referralLink;
+}
+```
+
+### 2. SPA-роутинг между экранами
+
+Все экраны — отдельные `<div id="...Screen">`, скрытые через класс `.hidden`.
+
+```javascript
+function showScreen(screenName) {
+    document.querySelectorAll('div[id$="Screen"]').forEach(screen => {
+        screen.classList.add('hidden');
+    });
+    document.getElementById(screenName).classList.remove('hidden');
+
+    document.querySelectorAll('.card').forEach((card, index) => {
+        card.style.animation = `fadeIn 0.5s ease-out ${index * 0.1}s both`;
+    });
+}
+```
+
+### 3. Динамическая генерация опций покупки
+
+```javascript
+let starPrice = 1.5;
+
+function generateStarOptions() {
+    const starOptions = [50, 100, 500, 1000];
+    const container = document.getElementById('buyStarsGrid');
+
+    starOptions.forEach(stars => {
+        const cost = stars * starPrice;
+        const option = document.createElement('div');
+        option.className = 'star-option';
+        option.onclick = () => selectStars(stars, option);
+
+        option.innerHTML = `
+            <div class="star-count">
+                <i class="fas fa-star"></i> ${stars}
+            </div>
+            <div class="star-price">${cost.toFixed(2)} ₽</div>
+        `;
+
+        container.appendChild(option);
+    });
+}
+```
+
+### 4. Premium: цены по типу аккаунта
+
+```javascript
+const premiumPrices = {
+    kyc:    { 3: 299, 6: 549, 12: 899 },
+    nonkyc: { 3: 349, 6: 649, 12: 1099 }
+};
+
+function selectPremiumType(type) {
+    selectedPremiumType = type;
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+    updatePremiumCost();
+}
+```
+
+### 5. Продажа звёзд с моментальным пересчётом
+
+```javascript
+document.getElementById('sellAmountInput').addEventListener('input', function() {
+    const amount = parseInt(this.value) || 0;
+    const receiveAmount = amount * starPrice;
+    document.getElementById('sellReceiveAmount').textContent =
+        receiveAmount.toFixed(2) + ' ₽';
+});
+```
+
+### 6. Уведомления
+
+```javascript
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+
+    let icon = 'fas fa-info-circle';
+    if (type === 'error')   icon = 'fas fa-exclamation-triangle';
+    if (type === 'success') icon = 'fas fa-check-circle';
+    if (type === 'warning') icon = 'fas fa-exclamation-circle';
+
+    notification.innerHTML = `<i class="${icon}"></i><span>${message}</span>`;
+    document.body.appendChild(notification);
+
+    setTimeout(() => notification.remove(), 3000);
+}
+```
+
+---
+
+## 🎨 Дизайн-система
+
+```css
+:root {
+    --primary:        #8774E1;
+    --secondary:      #34B7F1;
+    --premium:        linear-gradient(135deg, #FFD700, #FFA500);
+    --success:        #2ECC71;
+    --danger:         #E74C3C;
+    --background:     linear-gradient(135deg, #1A1A1A, #2D2D2D);
+    --card-bg:        rgba(45, 45, 45, 0.7);
+    --glass-border:   rgba(255, 255, 255, 0.1);
+    --radius-lg:      24px;
+    --shadow:         0 8px 32px rgba(0, 0, 0, 0.3);
+}
+```
+
+**Ключевые эффекты:**
+- `backdrop-filter: blur(10px)` — стеклянные карточки
+- Ripple-анимация на кнопках
+- Каскадный `fadeIn` при переходах
+- `pulse` на плавающей кнопке «+»
+
+---
+
+## 🛠 Стек технологий
+
+| Компонент | Технология |
+|---|---|
+| Разметка | HTML5 |
+| Стили | CSS3 (переменные, grid, flex, градиенты, backdrop-filter) |
+| Логика | Vanilla JavaScript (ES6+) |
+| Иконки | Font Awesome 6.4 |
+| Платформа | Telegram WebApp API |
+
+**Без фреймворков.** Чистый HTML + CSS + JS.
+
+---
+
+## 🚀 Развёртывание
+
+### Как Telegram Mini App
+
+1. Загрузи `index.html` на HTTPS-хостинг (Vercel / Netlify)
+2. В **@BotFather** → `/newapp` → укажи URL
+3. Пользователи открывают приложение через кнопку в боте
+
+### Локально
 
 ```bash
-git clone https://github.com/sccamm/tg-shop-bot.git
-cd tg-shop-bot
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-# отредактируй .env: BOT_TOKEN, ADMIN_IDS
-python bot.py
+python -m http.server 8000
+# → http://localhost:8000
 ```
 
----
+### Что заменить
 
-## 🗂 Структура
-
-```
-tg-shop-bot/
-├── bot.py              — точка входа
-├── config.py           — загрузка .env
-├── database.py         — работа с SQLite
-├── handlers/
-│   ├── start.py
-│   ├── catalog.py
-│   ├── cart.py
-│   └── admin.py
-├── keyboards/
-│   └── inline.py
-├── requirements.txt
-└── .env.example
-```
-
----
-
-## 💻 Пример кода
-
-**`database.py` — работа с SQLite**
-
-```python
-import aiosqlite
-from config import DB_PATH
-
-
-async def init_db():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                price INTEGER NOT NULL,
-                category TEXT NOT NULL,
-                stock INTEGER DEFAULT 0
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                product_id INTEGER NOT NULL,
-                amount INTEGER NOT NULL,
-                status TEXT DEFAULT 'pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        await db.commit()
-
-
-async def get_products(category: str = None):
-    async with aiosqlite.connect(DB_PATH) as db:
-        if category:
-            q = "SELECT id, name, price, stock FROM products WHERE category = ?"
-            args = (category,)
-        else:
-            q = "SELECT id, name, price, stock FROM products"
-            args = ()
-        async with db.execute(q, args) as cur:
-            rows = await cur.fetchall()
-            return [dict(zip(("id","name","price","stock"), r)) for r in rows]
-
-
-async def create_order(user_id: int, product_id: int, amount: int) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "INSERT INTO orders (user_id, product_id, amount) VALUES (?, ?, ?)",
-            (user_id, product_id, amount)
-        )
-        await db.commit()
-        return cur.lastrowid
-```
-
-**`handlers/catalog.py` — каталог с инлайн-кнопками**
-
-```python
-from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-import database as db
-
-router = Router()
-
-
-@router.callback_query(F.data == "catalog")
-async def show_catalog(call: CallbackQuery):
-    products = await db.get_products()
-    kb = InlineKeyboardBuilder()
-    for p in products:
-        kb.button(
-            text=f"{p['name']} — {p['price']}₽",
-            callback_data=f"buy:{p['id']}"
-        )
-    kb.adjust(1)
-    kb.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu"))
-
-    await call.message.edit_text(
-        "🛍 <b>Каталог товаров</b>\nВыбери товар:",
-        reply_markup=kb.as_markup(),
-        parse_mode="HTML"
-    )
-
-
-@router.callback_query(F.data.startswith("buy:"))
-async def buy_product(call: CallbackQuery):
-    product_id = int(call.data.split(":")[1])
-    products = await db.get_products()
-    product = next((p for p in products if p["id"] == product_id), None)
-    if not product:
-        return await call.answer("Товар не найден", show_alert=True)
-
-    order_id = await db.create_order(call.from_user.id, product_id, product["price"])
-    await call.message.edit_text(
-        f"✅ Заказ <b>#{order_id}</b> создан\n"
-        f"Товар: <b>{product['name']}</b>\n"
-        f"Сумма: <b>{product['price']}₽</b>\n\n"
-        f"Перейди к оплате: /pay_{order_id}",
-        parse_mode="HTML"
-    )
-```
-
-**`bot.py` — точка входа**
-
-```python
-import asyncio
-import logging
-from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
-
-from config import BOT_TOKEN
-import database as db
-from handlers import start, catalog, cart, admin
-
-logging.basicConfig(level=logging.INFO)
-
-
-async def main():
-    await db.init_db()
-
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher(storage=MemoryStorage())
-
-    dp.include_router(start.router)
-    dp.include_router(catalog.router)
-    dp.include_router(cart.router)
-    dp.include_router(admin.router)
-
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
----
-
-## 🗄 Схема БД
-
-| Таблица | Поля |
+| Параметр | На что заменить |
 |---|---|
-| `products` | id, name, price, category, stock |
-| `orders` | id, user_id, product_id, amount, status, created_at |
-| `users` | id, username, balance, is_admin |
+| `your_bot_username` | username твоего бота |
+| `starPrice` | актуальный курс 1 звезды |
+| `premiumPrices` | актуальные цены Premium |
+| `tonAddress` | реальный TON-кошелёк |
+| `setTimeout(...)` | `fetch('/api/...')` к бэкенду |
+
+### Подключение бэкенда
+
+```javascript
+async function processBuyStars() {
+    const recipient = document.getElementById('recipientInput').value;
+    if (!recipient || selectedStars === 0) {
+        showNotification('Заполните все поля', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/buy/stars', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': tg.initData
+            },
+            body: JSON.stringify({
+                recipient,
+                amount: selectedStars,
+                user_id: userData.id
+            })
+        });
+
+        const data = await res.json();
+        if (data.ok) {
+            showNotification(`Куплено ${selectedStars} звёзд!`, 'success');
+            showScreen('mainScreen');
+            loadUserData();
+        } else {
+            showNotification(data.error || 'Ошибка', 'error');
+        }
+    } catch (e) {
+        showNotification('Ошибка соединения', 'error');
+    }
+}
+```
+
+> ⚠️ **Важно:** Всегда проверяй `tg.initData` на бэкенде — это HMAC-подпись от Telegram.
 
 ---
 
@@ -223,4 +289,3 @@ if __name__ == "__main__":
 
 ### Пополнение баланса
 <img width="482" height="1024" alt="525b2b72-33c5-4e78-9b9f-19d4fee80752" src="https://github.com/user-attachments/assets/38b9e7ec-5a1f-419b-9a43-431d58487e1c" />
-
